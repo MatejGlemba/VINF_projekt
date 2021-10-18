@@ -82,20 +82,22 @@ def read_input():
             splitInput = regex.split(":", query, 1)
             #input keys
             inputKeys = splitInput[0].lower()
-            inputKeys = removeStopWords(query)
-            inputKeys = stemming(inputKeys, 'sk')
+            inputKeys = removeStopWords(inputKeys)
+            inputKeys = stemming(inputKeys, 'cz')
             actualInputKeyWords = inputKeys
-            #print(inputKeys)
+            #print("inputKeys ", actualInputKeyWords)
             #query
             query = splitInput[1]
             query = query.lower()
             query = removeStopWords(query)
-            query = stemming(query, 'sk')
+            query = stemming(query, 'cz')
             #print(query)
             keywords = query
+            #print("query", keywords)
             return getDataObjects(query)
         else:
             print("wrong format")
+            return
 
 def load_documents():
     global list_of_data
@@ -156,6 +158,7 @@ def printIndex(num):
 def getDataObjects(inputQuery):
     global index
     dataObjects = []
+    #print(inputQuery)
     for term in inputQuery:
         if term in index:
             for data in list_of_data:
@@ -164,13 +167,13 @@ def getDataObjects(inputQuery):
         else:
             for i in range(len(term),0,-1):
                 if term[0:i] in index:
-                    print(term[0:i])
+                    #print("Term", term[0:i])
                     tempTerm = term[0:i]
                     for data in list_of_data:
                         if data.ID in index[tempTerm]:
                             dataObjects.append(data)
                     break
-                            
+                           
    #print(dataObjects)
     return dataObjects
 
@@ -183,6 +186,7 @@ def print_output(dataObjects):
             keyWordsForOutput.append(keyWord)
     print("------------------------------")
     print("Vstupne keywords: ", keywords)
+    print("------------------------------")
     if dataObjects:
         for data in dataObjects:
             if keyWordsForOutput:
@@ -198,8 +202,13 @@ def print_output(dataObjects):
                 print(data)
             print("------------------------------")
     else:
-        print("Nebola najdena zhoda")
+        print("Nebola najdena zhoda -> vypisujem vsetko")
+        for data in list_of_data:
+            print(data)
+            print("------------------------------")
 
+    print("Najpouzivanejsie termy")
+    print("------------------------------")
     printIndex(20)
 
 def runProgram():
