@@ -20,6 +20,8 @@ from pymarc import MARCReader, parse_xml_to_array, Record
 # 7. add some statistics bullshit
 # 8. print output
 
+expectedInputKeyWords = ['autor', 'titul', 'abstrakt']
+actualInputKeyWords = []
 stopWords = []
 list_of_data = []
 # key = term, value list of doc_id
@@ -73,15 +75,25 @@ def stemming(query, lang):
 
 def read_input():
     global keywords
+    global actualInputKeyWords
     while True:
-        processedQuery = input().strip()
-        if processedQuery.startswith("Vrat mi autorov, ktori pisu o :"):
-            processedQuery = regex.split(":", processedQuery, 1)[1]
-            processedQuery = processedQuery.lower()
-            processedQuery = removeStopWords(processedQuery)
-            processedQuery = stemming(processedQuery, 'cz')
-            keywords = processedQuery
-            return getDataObjects(processedQuery)
+        query = input().strip()
+        if regex.match(".+:.+", query):
+            splitInput = regex.split(":", query, 1)
+            #input keys
+            inputKeys = splitInput[0].lower()
+            inputKeys = removeStopWords(query)
+            inputKeys = stemming(inputKeys, 'sk')
+            actualInputKeyWords = inputKeys
+            #print(inputKeys)
+            #query
+            query = splitInput[1]
+            query = query.lower()
+            query = removeStopWords(query)
+            query = stemming(query, 'sk')
+            #print(query)
+            keywords = query
+            return getDataObjects(query)
         else:
             print("wrong format")
 
@@ -91,11 +103,12 @@ def load_documents():
         data = f.read()
         data = regex.sub('\r\n', '', data)
         data = regex.sub('>  <', '><', data)
-    f = codecs.open('demo.txt', encoding='utf-8', mode='a')
-    f.write(data)
-    f.close()
+        #data = regex.sub('><record>', '>\n<record>', data)
+    #fw = codecs.open('demo.txt', encoding='utf-8', mode='a')
+    #fw.write(data) 
+    #fw.close()
 
-    data = regex.finditer("tag=\"245\".+?>(<subfield code=\"a\">(?P<title>.+?)</subfield>)?(<subfield code=\"b\">(?P<subtitle>.+?)</subfield>)?(<subfield code=\"c\">(?P<autor>.+?)</subfield>)?(.+?(tag=\"520\".+?>)(<subfield code=\"a\">(?P<abstract>.+?)</subfield>)?)?", data)
+    data = regex.finditer("<datafield tag=\"245\" ind1=\"[0-9 ]\" ind2=\"[0-9 ]\">(<subfield code=\"a\">(?P<title>.+?)</subfield>)?(<subfield code=\"b\">(?P<subtitle>.+?)</subfield>)?(<subfield code=\"c\">(?P<autor>.+?)</subfield>)?(.+?<datafield tag=\"520\" ind1=\"[0-9 ]\" ind2=\"[0-9 ]\">(<subfield code=\"a\">(?P<abstract>.+?)</subfield>)?)?", data)
     doc_id = 1
     for d in data:
         data_dict = d.groupdict()
@@ -128,7 +141,17 @@ def index_documents():
             elif data.ID not in index[term]:
                 index[term].append(data.ID)
     ## iteruj cez data object, ak tam term nie je, pridaj ho + pridaj ID, ak tam term uz je, pridaj iba ID do listu
+    
+def printIndex(num):
+    global index
     #print(index)
+    index = dict(sorted(index.items(), key=lambda item: len(item[1]), reverse=True))
+    n = 0
+    for k,v in index.items():
+        print(k, v)
+        n +=1
+        if n > num:
+            break
 
 def getDataObjects(inputQuery):
     global index
@@ -138,15 +161,46 @@ def getDataObjects(inputQuery):
             for data in list_of_data:
                 if data.ID in index[term]:
                     dataObjects.append(data)
+        else:
+            for i in range(len(term),0,-1):
+                if term[0:i] in index:
+                    print(term[0:i])
+                    tempTerm = term[0:i]
+                    for data in list_of_data:
+                        if data.ID in index[tempTerm]:
+                            dataObjects.append(data)
+                    break
+                            
+   #print(dataObjects)
     return dataObjects
 
 def print_output(dataObjects):
+    global actualInputKeyWords
+    global expectedInputKeyWords
+    keyWordsForOutput = []
+    for keyWord in actualInputKeyWords:
+        if keyWord in expectedInputKeyWords:
+            keyWordsForOutput.append(keyWord)
+    print("------------------------------")
     print("Vstupne keywords: ", keywords)
     if dataObjects:
         for data in dataObjects:
-            print(data)
+            if keyWordsForOutput:
+                print("ID :", data.ID)
+                if 'titul' in keyWordsForOutput:
+                    print("Titul :", data.title)
+                    print("Subtitul :",data.subtitle)
+                if 'autor' in keyWordsForOutput:
+                    print("Autor :", data.autor)
+                if 'abstrakt' in keyWordsForOutput:
+                    print("Abstrakt :", data.abstract)
+            else:
+                print(data)
+            print("------------------------------")
     else:
         print("Nebola najdena zhoda")
+
+    printIndex(20)
 
 def runProgram():
     load_stopwords('cz')
