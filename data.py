@@ -10,7 +10,7 @@ class Data:
 
     def __init__(self, ID: int, title: str, subtitle: str, autor: str, abstract: str):
         self.ID = ID
-        self.title = title # in grams, for calculating shipping
+        self.title = title
         self.subtitle = subtitle
         self.autor = autor
         self.abstract = abstract

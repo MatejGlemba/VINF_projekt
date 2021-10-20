@@ -3,6 +3,7 @@
 
 import regex 
 import codecs
+import math
 import simplemma
 from unidecode import unidecode
 import unicodedata
@@ -26,18 +27,21 @@ stopWords = []
 list_of_data = []
 # key = term, value list of doc_id
 index = {}
+collectionFreqIndex = {}
+documentFreqIndex = {}
+inverseDocumentFreqIndex = {}
 keywords = []
 
 def load_stopwords(language):
     global stopWords
     if language == 'sk':
         with codecs.open('stopwords_sk.txt', encoding='utf-8', mode='r') as f:
-            stopWords = [ simplify(line.strip()) for line in f ]
+            stopWords = [ removeDiacritics(line.strip()) for line in f ]
     elif language == 'cz':
         with open('stopwords_cze.txt', encoding='utf-8', mode='r') as f:
-            stopWords = [ simplify(line.strip()) for line in f ]
+            stopWords = [ removeDiacritics(line.strip()) for line in f ]
 
-def simplify(text):
+def removeDiacritics(text):
 	import unicodedata
 	try:
 		text = unicode(text, 'utf-8')
@@ -48,7 +52,7 @@ def simplify(text):
 
 def removeStopWords(string):
     string = string.strip()
-    string = simplify(string)
+    string = removeDiacritics(string)
     ## remove non-alfanumeric characters
     string = regex.sub('[^A-Za-z0-9 ]+', '', string)
     list_of_terms = regex.split("\s", string)
@@ -76,6 +80,8 @@ def stemming(query, lang):
 def read_input():
     global keywords
     global actualInputKeyWords
+    print("---------------------------------------")
+    print("Input format : [Co hladam]:[Podla coho]")
     while True:
         query = input().strip()
         if regex.match(".+:.+", query):
@@ -96,7 +102,6 @@ def read_input():
             #print("query", keywords)
             return getDataObjects(query)
         else:
-            print("wrong format")
             return
 
 def load_documents():
@@ -129,21 +134,62 @@ def load_documents():
         list_of_data.append(Data(ID=doc_id, title=title, subtitle=subtitle, autor=autor, abstract=abstract))
         doc_id += 1
 
+def processData(data):
+    merged_data = data.merge.lower()
+    merged_data = removeStopWords(merged_data) 
+    merged_data = stemming(merged_data, 'cz')
+    return merged_data
+
 def index_documents():
+    ## index = {
+    #  term : [ {data.id : freq}, {data.id} : freq, ....]
+    #  term : [ {data.id : freq}, {data.id} : freq, ....]
+    # }
     global index
+    global collectionFreqIndex
+    global documentFreqIndex
+    global inverseDocumentFreqIndex
+
     for data in list_of_data:
-        merged_data = data.merge.lower()
-        merged_data = removeStopWords(merged_data) 
-        merged_data = stemming(merged_data, 'cz')
+        merged_data = processData(data)
         for term in merged_data:
             if index.get(term) is None:
                 postingList = []
-                postingList.append(data.ID)
+                docIdFreqDict = {}
+                docIdFreqDict[data.ID] = 1
+                postingList.append(docIdFreqDict)
                 index[term] = postingList
-            elif data.ID not in index[term]:
-                index[term].append(data.ID)
-    ## iteruj cez data object, ak tam term nie je, pridaj ho + pridaj ID, ak tam term uz je, pridaj iba ID do listu
+            update = False
+            for tupl in index.get(term):
+                if data.ID in tupl:
+                    freq = tupl[data.ID]
+                    tupl[data.ID] = freq + 1
+                    update = True
+                    break
+            if not update:
+                docIdFreqDict = {}
+                docIdFreqDict[data.ID] = 1
+                index[term].append(docIdFreqDict)
+    ## Fill document and collection frequency index
+    for k,postingList in index.items():
+        documentFreqIndex[k] = len(postingList)
+        for tmp in postingList:
+            for freq in tmp.values():
+                if k not in collectionFreqIndex:
+                    collectionFreqIndex[k] = freq
+                else:
+                    collectionFreqIndex[k] += freq
+
+    inverseDocumentFreqIndex = {}
+    for k,v in documentFreqIndex.items():
+        inverseDocumentFreqIndex[k] = math.log(len(list_of_data)/v)
     
+    #print("INVDOCFRQ" , dict(sorted(inverseDocumentFreqIndex.items(), key=lambda item: item[1])))
+    #print(index)
+    #print("DOCFRQ" , dict(sorted(documentFreqIndex.items(), key=lambda item: item[1], reverse=True)))
+    #print("COLLFRQ" , dict(sorted(collectionFreqIndex.items(), key=lambda item: item[1], reverse=True)))
+    #print("INDEX", dict(sorted(index.items(), key=lambda item: len(item[1]), reverse=True)))
+
 def printIndex(num):
     global index
     #print(index)
@@ -151,30 +197,33 @@ def printIndex(num):
     n = 0
     for k,v in index.items():
         print(k, v)
-        n +=1
+        n += 1
         if n > num:
             break
 
 def getDataObjects(inputQuery):
     global index
-    dataObjects = []
+    global inverseDocumentFreqIndex
+    dataObjects = {}
     #print(inputQuery)
     for term in inputQuery:
         if term in index:
             for data in list_of_data:
-                if data.ID in index[term]:
-                    dataObjects.append(data)
+                for tupl in index[term]:
+                    if data.ID in tupl:
+                        dataObjects[tupl[data.ID] * inverseDocumentFreqIndex[term]] = data
         else:
             for i in range(len(term),0,-1):
                 if term[0:i] in index:
                     #print("Term", term[0:i])
                     tempTerm = term[0:i]
                     for data in list_of_data:
-                        if data.ID in index[tempTerm]:
-                            dataObjects.append(data)
+                        for tupl in index[tempTerm]:
+                            if data.ID in tupl:
+                                dataObjects[tupl[data.ID] * inverseDocumentFreqIndex[tempTerm]] = data
                     break
                            
-   #print(dataObjects)
+    #print("DATAOBJECTS", dataObjects)
     return dataObjects
 
 def print_output(dataObjects):
@@ -188,7 +237,7 @@ def print_output(dataObjects):
     print("Vstupne keywords: ", keywords)
     print("------------------------------")
     if dataObjects:
-        for data in dataObjects:
+        for data in dataObjects.values():
             if keyWordsForOutput:
                 print("ID :", data.ID)
                 if 'titul' in keyWordsForOutput:
@@ -209,7 +258,7 @@ def print_output(dataObjects):
 
     print("Najpouzivanejsie termy")
     print("------------------------------")
-    printIndex(20)
+    #printIndex(20)
 
 def runProgram():
     load_stopwords('cz')
