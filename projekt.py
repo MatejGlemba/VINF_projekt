@@ -9,7 +9,7 @@ from unidecode import unidecode
 import unicodedata
 import cze_stemmer
 from data import Data
-from pymarc import MARCReader, parse_xml_to_array, Record
+import time
 
 # todo :
 # 1. run program
@@ -106,33 +106,47 @@ def read_input():
 
 def load_documents():
     global list_of_data
-    with codecs.open('stud-Cat_short.txt', encoding='utf-8', mode='r') as f:
-        data = f.read()
-        data = regex.sub('\r\n', '', data)
-        data = regex.sub('>  <', '><', data)
+    doc_id = 1
+    list_of_records = {}
+    with open('short.txt', encoding='utf-8', mode='r') as f:
+        for line in f:
+            recordLine = ''
+            if regex.match("<record>", line):
+                doc_id += 1
+                recordLine += line
+                for nextLine in f:
+                    recordLine += nextLine
+                    if regex.match("</record>", nextLine):
+                        list_of_records[doc_id] = recordLine
+                        break
+        #data = regex.sub('\r\n', '', data)
+        #data = regex.sub('>  <', '><', data)
         #data = regex.sub('><record>', '>\n<record>', data)
+    
     #fw = codecs.open('demo.txt', encoding='utf-8', mode='a')
     #fw.write(data) 
     #fw.close()
-
-    data = regex.finditer("<datafield tag=\"245\" ind1=\"[0-9 ]\" ind2=\"[0-9 ]\">(<subfield code=\"a\">(?P<title>.+?)</subfield>)?(<subfield code=\"b\">(?P<subtitle>.+?)</subfield>)?(<subfield code=\"c\">(?P<autor>.+?)</subfield>)?(.+?<datafield tag=\"520\" ind1=\"[0-9 ]\" ind2=\"[0-9 ]\">(<subfield code=\"a\">(?P<abstract>.+?)</subfield>)?)?", data)
-    doc_id = 1
-    for d in data:
-        data_dict = d.groupdict()
-        title = data_dict['title']
-        if title is None:
-            title = ""
-        subtitle = data_dict['subtitle']
-        if subtitle is None:
-            subtitle = ""
-        autor = data_dict['autor']
-        if autor is None:
-            autor = ""
-        abstract = data_dict['abstract']
-        if abstract is None:
-            abstract = ""
-        list_of_data.append(Data(ID=doc_id, title=title, subtitle=subtitle, autor=autor, abstract=abstract))
-        doc_id += 1
+    print("List of records is loaded", time.ctime())
+    for k,v in list_of_records.items():
+        v = regex.sub('\n', '', v)
+        v = regex.sub('>  <', '><', v)
+        data = regex.finditer("<datafield tag=\"245\" ind1=\"[0-9 ]\" ind2=\"[0-9 ]\">(<subfield code=\"a\">(?P<title>.+?)</subfield>)?(<subfield code=\"b\">(?P<subtitle>.+?)</subfield>)?(<subfield code=\"c\">(?P<autor>.+?)</subfield>)?(.+?<datafield tag=\"520\" ind1=\"[0-9 ]\" ind2=\"[0-9 ]\">(<subfield code=\"a\">(?P<abstract>.+?)</subfield>)?)?", v)
+        for d in data:
+            data_dict = d.groupdict()
+            title = data_dict['title']
+            if title is None:
+                title = ""
+            subtitle = data_dict['subtitle']
+            if subtitle is None:
+                subtitle = ""
+            autor = data_dict['autor']
+            if autor is None:
+                autor = ""
+            abstract = data_dict['abstract']
+            if abstract is None:
+                abstract = ""
+            list_of_data.append(Data(ID=k, title=title, subtitle=subtitle, autor=autor, abstract=abstract))
+    print("Data objects are inicialized", time.ctime())
 
 def processData(data):
     merged_data = data.merge.lower()
@@ -170,20 +184,22 @@ def index_documents():
                 docIdFreqDict = {}
                 docIdFreqDict[data.ID] = 1
                 index[term].append(docIdFreqDict)
+
+    print("Document is indexed", time.ctime())
     ## Fill document and collection frequency index
     for k,postingList in index.items():
         documentFreqIndex[k] = len(postingList)
-        for tmp in postingList:
-            for freq in tmp.values():
-                if k not in collectionFreqIndex:
-                    collectionFreqIndex[k] = freq
-                else:
-                    collectionFreqIndex[k] += freq
-
+    #    for tmp in postingList:
+    #        for freq in tmp.values():
+    #            if k not in collectionFreqIndex:
+    #                collectionFreqIndex[k] = freq
+    #            else:
+    #                collectionFreqIndex[k] += freq
+    print("Document frequency is calculated", time.ctime())
     inverseDocumentFreqIndex = {}
     for k,v in documentFreqIndex.items():
         inverseDocumentFreqIndex[k] = math.log(len(list_of_data)/v)
-    
+    print("Inverse Document frequency is calculated", time.ctime())
     #print("INVDOCFRQ" , dict(sorted(inverseDocumentFreqIndex.items(), key=lambda item: item[1])))
     #print(index)
     #print("DOCFRQ" , dict(sorted(documentFreqIndex.items(), key=lambda item: item[1], reverse=True)))
@@ -237,9 +253,10 @@ def print_output(dataObjects):
     print("Vstupne keywords: ", keywords)
     print("------------------------------")
     if dataObjects:
-        for data in dataObjects.values():
+        for key, data in dataObjects.items():
             if keyWordsForOutput:
                 print("ID :", data.ID)
+                print("Index freq: ", key)
                 if 'titul' in keyWordsForOutput:
                     print("Titul :", data.title)
                     print("Subtitul :",data.subtitle)
@@ -248,6 +265,7 @@ def print_output(dataObjects):
                 if 'abstrakt' in keyWordsForOutput:
                     print("Abstrakt :", data.abstract)
             else:
+                print("Index freq: ", key)
                 print(data)
             print("------------------------------")
     else:
@@ -256,15 +274,13 @@ def print_output(dataObjects):
             print(data)
             print("------------------------------")
 
-    print("Najpouzivanejsie termy")
-    print("------------------------------")
-    #printIndex(20)
-
 def runProgram():
     load_stopwords('cz')
+    print("Stopwords loaded.", time.ctime())
     load_documents()
     index_documents()
     list_of_objects = read_input()
+    print("Input data are processed", time.ctime())
     #analyze()
     print_output(list_of_objects)
 
