@@ -1,3 +1,4 @@
+# coding: utf8
 #! /usr/bin/env python3.1
 ''' Czech stemmer
 Copyright © 2010 Luís Gomes <luismsgomes@gmail.com>.
@@ -163,5 +164,5 @@ if __name__ == '__main__':
         sys.exit("usage: {} light|aggressive".format(sys.argv[0]))
     aggressive = sys.argv[1] == "aggressive"
     for line in sys.stdin:
-        print(*[cz_stem(word, aggressive=aggressive)
+        print([cz_stem(word, aggressive=aggressive)
                 for word in line.split()])

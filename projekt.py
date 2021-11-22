@@ -108,7 +108,7 @@ def load_documents():
     global list_of_data
     doc_id = 1
     list_of_records = {}
-    with open('short.txt', encoding='utf-8', mode='r') as f:
+    with open('stud-Cat_short.txt', encoding='utf-8', mode='r') as f:
         for line in f:
             recordLine = ''
             if regex.match("<record>", line):
