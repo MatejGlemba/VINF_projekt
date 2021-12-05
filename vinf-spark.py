@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 # encoding=utf8  
 
-from re import UNICODE
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StringType, StructField, StructType
-from unidecode import unidecode
 import unicodedata
-#import cze_stemmer
 import regex
+#from cze_stemmer import cz_stem
 
 extract_record_info_schema = StructType([
     StructField("autor", StringType(), True),
@@ -40,11 +38,17 @@ def removeStopWords(string):
     
 def removeDiacritics(text):
 	try:
-		text = UNICODE(text, 'utf-8')
+		text = unicode(text, 'utf-8')
 	except NameError:
 		pass
 	text = unicodedata.normalize('NFD', text).encode('ascii', 'ignore').decode("utf-8")
 	return str(text)
+
+#def stemming(words):
+#    stemmedList = []
+#    for word in words:
+#        stemmedList.append(cz_stem(word))
+#    return stemmedList
 
 def process(rdd):
     """
@@ -80,7 +84,7 @@ def process(rdd):
 def processData(data):
     merged_data = data.lower()
     merged_data = removeStopWords(merged_data) 
-    #merged_data = stemming(merged_data, 'cz')
+   # merged_data = stemming(merged_data)
     return merged_data
 
 def runProgram():
