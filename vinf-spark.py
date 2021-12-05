@@ -1,21 +1,26 @@
-# coding: utf8
-from re import UNICODE, X
+#!/usr/bin/env python
+# encoding=utf8  
+
+from re import UNICODE
 from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
-from pyspark.sql.functions import col, udf
-import pyspark
-import sys
-import cze_stemmer
-import os
-from os import environ
-from pyspark.sql.types import IntegerType, Row, StringType, StructField, StructType
+from pyspark.sql.types import StringType, StructField, StructType
+from unidecode import unidecode
+import unicodedata
+#import cze_stemmer
 import regex
-environ['PYSPARK_SUBMIT_ARGS'] = '--packages com.databricks:spark-xml_2.10:0.4.1 pyspark-shell' 
+
+extract_record_info_schema = StructType([
+    StructField("autor", StringType(), True),
+    StructField("title", StringType(), True),
+    StructField("subtitle", StringType(), True),
+    StructField("abstract", StringType(), True)
+])
 
 def load_stopwords():
     global stopWords
-    with open('stopwords_cze.txt', mode='r') as f:
-        stopWords = [ removeDiacritics(line.strip()) for line in f ]
+    with open('stopwords_cze.txt', encoding='utf-8', mode='r') as f:
+        stopWords = [line.strip() for line in f ]
+    print(stopWords)
             
 def removeStopWords(string):
     string = string.strip()
@@ -32,23 +37,14 @@ def removeStopWords(string):
             new_list_of_terms.append(term)
     list_of_terms = None
     return new_list_of_terms
-
-def stemming(query, lang):
-    stemmedList = []
-    for word in query:
-        stemmedList.append(cze_stemmer.cz_stem(word))
-    return stemmedList
     
-extract_record_info_schema = StructType([
-    StructField("autor", StringType(), True),
-    StructField("title", StringType(), True),
-    StructField("subtitle", StringType(), True),
-    StructField("abstract", StringType(), True)
-])
-
 def removeDiacritics(text):
-	text = text.decode('utf-8')
-	return text
+	try:
+		text = UNICODE(text, 'utf-8')
+	except NameError:
+		pass
+	text = unicodedata.normalize('NFD', text).encode('ascii', 'ignore').decode("utf-8")
+	return str(text)
 
 def process(rdd):
     """
@@ -56,9 +52,9 @@ def process(rdd):
     then return a list of list.
     """
     resultsArray = []
-    rdd_text = str(rdd).decode('utf-8')
+    rdd_text = str(rdd)
     rdd_text = regex.sub("u'", "'", rdd_text)
-    data = regex.finditer("_tag='245', subfield=\[(Row\(_VALUE='(?P<title>.+?)', _code='a'\))(, )?(Row\(_VALUE='(?P<subtitle>.+?)', _code='b'\))?(, )?(Row\(_VALUE='(?P<autor>.+?)', _code='c'\))?(.+?_tag='520', subfield=\[(Row\(_VALUE='(?P<abstract>.+?)', _code='a'\))?)?", rdd_text)
+    data = regex.finditer("Row\(_ind1='1', _ind2='0', _tag='245', subfield=\[Row\(_VALUE='(?P<title>[^']*)', _code='a'\)(, Row\(_VALUE='(?P<subtitle>[^']*)', _code='b'\))?(, Row\(_VALUE='(?P<autor>[^']*)', _code='c'\))?](.+?_tag='520', subfield=\[(Row\(_VALUE='(?P<abstract>[^']*)', _code='a'\))?)?", rdd_text)
     for d in data:
         results = {}
         data_dict = d.groupdict()
@@ -87,18 +83,11 @@ def processData(data):
     #merged_data = stemming(merged_data, 'cz')
     return merged_data
 
-def ascii_ignore(x):
-    if x:
-        return x.decode('utf-8')
-    else:
-        return None#
-
-ascii_udf = udf(ascii_ignore)
-
 def runProgram():
     load_stopwords()
     spark = SparkSession.builder.getOrCreate()
-    df = spark.read.format('xml').options(rowTag='record', rootTag='collection', encoding='utf-8').load('stud-Cat_short.xml')
+    df = spark.read.format("com.databricks.spark.xml").options(rowTag='record', rootTag='collection', encode='utf-8').load('stud-Cat_short.xml')
+    #print(df.take(2))
     df.printSchema()
     selected = df.select("datafield")\
         .dropna(how='any')\
@@ -109,7 +98,6 @@ def runProgram():
     df2.printSchema()
     df2.show(3, False)
     df2.write.option("delimiter", "\t").format('com.databricks.spark.csv').save('output.csv')
-
     
 # run program
 runProgram()
