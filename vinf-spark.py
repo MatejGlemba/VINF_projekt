@@ -1,17 +1,20 @@
 #!/usr/bin/env python
 # encoding=utf8  
 
+import sys
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StringType, StructField, StructType
 import unicodedata
 import regex
-#from cze_stemmer import cz_stem
+from simplemma import simplemma
+#import cze_stemmer
 
 extract_record_info_schema = StructType([
     StructField("autor", StringType(), True),
     StructField("title", StringType(), True),
     StructField("subtitle", StringType(), True),
-    StructField("abstract", StringType(), True)
+    StructField("abstract", StringType(), True),
+    StructField("text", StringType(), True)
 ])
 
 def load_stopwords():
@@ -19,7 +22,15 @@ def load_stopwords():
     with open('stopwords_cze.txt', encoding='utf-8', mode='r') as f:
         stopWords = [line.strip() for line in f ]
     print(stopWords)
-            
+  
+def removeDiacritics(text):
+	try:
+		text = unicode(text, 'utf-8')
+	except NameError:
+		pass
+	text = unicodedata.normalize('NFD', text).encode('ascii', 'ignore').decode("utf-8")
+	return str(text)
+          
 def removeStopWords(string):
     string = string.strip()
     string = removeDiacritics(string)
@@ -36,20 +47,6 @@ def removeStopWords(string):
     list_of_terms = None
     return new_list_of_terms
     
-def removeDiacritics(text):
-	try:
-		text = unicode(text, 'utf-8')
-	except NameError:
-		pass
-	text = unicodedata.normalize('NFD', text).encode('ascii', 'ignore').decode("utf-8")
-	return str(text)
-
-#def stemming(words):
-#    stemmedList = []
-#    for word in words:
-#        stemmedList.append(cz_stem(word))
-#    return stemmedList
-
 def process(rdd):
     """
     Read the xml string from rdd, parse and extract the elements,
@@ -78,30 +75,52 @@ def process(rdd):
         results['title'] = processData(title)
         results['subtitle'] = processData(subtitle)
         results['abstract'] = processData(abstract)
+        results['text'] = results['autor'] + results['title'] + results['subtitle'] + results['abstract']
         resultsArray.append(results)
     return resultsArray
 
+def stemming(query):
+    langdata = simplemma.load_data('cs')
+    data = ""
+    for t in query:
+        data += simplemma.lemmatize(t, langdata) + " "
+    return query
+    
 def processData(data):
     merged_data = data.lower()
     merged_data = removeStopWords(merged_data) 
-   # merged_data = stemming(merged_data)
+    merged_data = stemming(merged_data)
     return merged_data
 
 def runProgram():
     load_stopwords()
+    inputFile = sys.argv[1]
+    if not inputFile:
+        inputFile = "temp.xml"
+        
     spark = SparkSession.builder.getOrCreate()
-    df = spark.read.format("com.databricks.spark.xml").options(rowTag='record', rootTag='collection', encode='utf-8').load('stud-Cat_short.xml')
+    df = spark.read.format("com.databricks.spark.xml")\
+        .options(rowTag='record', rootTag='collection', encode='utf-8')\
+        .load(inputFile)
     #print(df.take(2))
     df.printSchema()
     selected = df.select("datafield")\
         .dropna(how='any')\
         .rdd\
         .flatMap(lambda row: process(row['datafield']))
-    print(selected.collect())
+    #print(selected.collect())
     df2 = spark.createDataFrame(data=selected, schema = extract_record_info_schema)
     df2.printSchema()
-    df2.show(3, False)
-    df2.write.option("delimiter", "\t").format('com.databricks.spark.csv').save('output.csv')
+    #df2.show(3, False)
+    
+    outputFile = sys.argv[2]
+    if not outputFile:
+        outputFile = "data"
+    
+    df2.write.option("delimiter", ",")\
+        .option("header", "true")\
+        .format('com.databricks.spark.csv')\
+        .save(outputFile)
     
 # run program
 runProgram()
