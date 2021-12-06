@@ -6,15 +6,15 @@ from pyspark.sql import SparkSession
 from pyspark.sql.types import StringType, StructField, StructType
 import unicodedata
 import regex
-from simplemma import simplemma
-#import cze_stemmer
+import cze_stemmer
 
 extract_record_info_schema = StructType([
     StructField("autor", StringType(), True),
     StructField("title", StringType(), True),
     StructField("subtitle", StringType(), True),
     StructField("abstract", StringType(), True),
-    StructField("text", StringType(), True)
+    StructField("text", StringType(), True),
+    StructField("originalText", StringType(), True)
 ])
 
 def load_stopwords():
@@ -40,9 +40,7 @@ def removeStopWords(string):
     list_of_terms = [i for i in list_of_terms if i]
     new_list_of_terms = []
     for term in list_of_terms:
-        if term not in stopWords:
-            new_list_of_terms.append(term)
-        elif len(term) > 3:
+        if term not in stopWords or len(term) > 3:
             new_list_of_terms.append(term)
     list_of_terms = None
     return new_list_of_terms
@@ -70,7 +68,8 @@ def process(rdd):
             autor = ""
         abstract = data_dict['abstract']
         if abstract is None:
-            abstract = ""   
+            abstract = ""  
+        results['originalText'] = "Autor: " + autor + ", Title: " + title + ", Subtitle: " + subtitle + ", Abstract: " + abstract 
         results['autor'] = processData(autor)
         results['title'] = processData(title)
         results['subtitle'] = processData(subtitle)
@@ -80,11 +79,10 @@ def process(rdd):
     return resultsArray
 
 def stemming(query):
-    langdata = simplemma.load_data('cs')
-    data = ""
-    for t in query:
-        data += simplemma.lemmatize(t, langdata) + " "
-    return query
+    stemmedList = ""
+    for word in query:
+        stemmedList += cze_stemmer.cz_stem(word) + " "
+    return stemmedList
     
 def processData(data):
     merged_data = data.lower()
