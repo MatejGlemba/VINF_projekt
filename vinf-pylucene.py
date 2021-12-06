@@ -8,7 +8,7 @@ from org.apache.lucene.analysis.standard import StandardAnalyzer
 from org.apache.lucene.index import IndexWriter, IndexWriterConfig
 from org.apache.lucene.document import Document, Field, TextField
 from org.apache.lucene.store import SimpleFSDirectory
-from org.apache.lucene.search import IndexSearcher, BooleanClause
+from org.apache.lucene.search import IndexSearcher
 from org.apache.lucene.index import DirectoryReader
 from org.apache.lucene.queryparser.classic import QueryParser
 import csv
@@ -65,16 +65,19 @@ analyzer = StandardAnalyzer()
 #print("---------------------------------------")
 #print("Input: ")
 #query = input().strip()
-query = sys.argv[1]
-inputKeys = query.lower()
+inputKeys = sys.argv[1]
+top = sys.argv[2]
+inputKeys = inputKeys.lower()
 #inputKeys = removeStopWords(inputKeys)
 inputKeys = stemming(inputKeys)
 print(inputKeys)
 
+inputKeys = "title:rodin^5 OR subtitle:rodin" 
 query = QueryParser("text", analyzer).parse(inputKeys)
-scoreDocs = searcher.search(query, 50).scoreDocs
+scoreDocs = searcher.search(query, int(top)).scoreDocs
 
 print("%s total matching documents." % len(scoreDocs))
 for scoreDoc in scoreDocs:
+    print("---------------------------------------")
     doc = searcher.doc(scoreDoc.doc)
     print('Score: ', scoreDoc, 'Data: ', doc.get('originalText'))

@@ -94,7 +94,7 @@ def runProgram():
     load_stopwords()
     inputFile = sys.argv[1]
     if not inputFile:
-        inputFile = "temp.xml"
+        inputFile = "data-short.xml"
         
     spark = SparkSession.builder.getOrCreate()
     df = spark.read.format("com.databricks.spark.xml")\
