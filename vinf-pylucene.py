@@ -1,6 +1,3 @@
-# Code from presentation: https://vi2021.ui.sav.sk/lib/exe/fetch.php?media=11_seleng_ir_tools.pdf
-# It starts right at the beggining of the presentation
-
 import regex
 import lucene
 from lucene import *
@@ -53,7 +50,7 @@ analyzer = StandardAnalyzer()
 
 inputKeys = sys.argv[1].strip()
 top = sys.argv[2]
-print(inputKeys)
+#print(inputKeys)
 if regex.search(",", inputKeys):
     inputKeys = regex.split(",", inputKeys)
     tempString = ""
@@ -63,7 +60,7 @@ if regex.search(",", inputKeys):
 else:
     inputKeys = regex.finditer("(?P<prefix>[^:]*:)?(?P<key>[^\^ [AND|OR]+]*)(?P<postfix>\^[0-9])?(?P<op>[AND|OR| ]+)?",inputKeys)
     if inputKeys:
-        print("GROUPS")
+        #print("GROUPS")
         tempString = ""
         for inputKey in inputKeys:
             inputKeyDict = inputKey.groupdict()
@@ -81,10 +78,10 @@ else:
                 tempString += inputKeyDict['op']  
         inputKeys = tempString
     else:
-        print("NIC")    
+        pass
+        #print("NIC")    
 print(inputKeys)
 
-#inputKeys = "title:rodin^5 OR subtitle:rodin" 
 query = QueryParser("text", analyzer).parse(inputKeys)
 scoreDocs = searcher.search(query, int(top)).scoreDocs
 

@@ -19,7 +19,7 @@ extract_record_info_schema = StructType([
 
 def load_stopwords():
     global stopWords
-    with open('stopwords_cze.txt', encoding='utf-8', mode='r') as f:
+    with open('stopwords.txt', encoding='utf-8', mode='r') as f:
         stopWords = [line.strip() for line in f ]
     print(stopWords)
   
