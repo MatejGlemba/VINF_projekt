@@ -1,10 +1,11 @@
+from os import path
 import regex
 import lucene
 from lucene import *
 from java.nio.file import Paths
 from org.apache.lucene.analysis.standard import StandardAnalyzer
 from org.apache.lucene.index import IndexWriter, IndexWriterConfig
-from org.apache.lucene.document import Document, Field, TextField
+from org.apache.lucene.document import Document, Field, TextField, StoredField
 from org.apache.lucene.store import SimpleFSDirectory
 from org.apache.lucene.search import IndexSearcher
 from org.apache.lucene.index import DirectoryReader
@@ -20,30 +21,32 @@ def stemming(query):
 lucene.initVM(vmargs=['-Djava.awt.headless=true'])
 #print('lucene', lucene.VERSION)
 
-store = SimpleFSDirectory(Paths.get("index"))
-analyzer = StandardAnalyzer()
-config = IndexWriterConfig(analyzer)
-config.setOpenMode(IndexWriterConfig.OpenMode.CREATE)
-writer = IndexWriter(store, config)
+if not path.exists('index'):
+    print("Creating index...")
+    store = SimpleFSDirectory(Paths.get("index"))
+    analyzer = StandardAnalyzer()
+    config = IndexWriterConfig(analyzer)
+    config.setOpenMode(IndexWriterConfig.OpenMode.CREATE)
+    writer = IndexWriter(store, config)
 
-# Create document
-with open('data.csv', newline='') as csvfile:
-    reader = csv.DictReader(csvfile)
-    for row in reader:
-        doc = Document()
-        #print(row)
-        doc.add(Field("autor", row['autor'], TextField.TYPE_STORED))
-        doc.add(Field("title", row['title'], TextField.TYPE_STORED))
-        doc.add(Field("subtitle", row['subtitle'], TextField.TYPE_STORED))
-        doc.add(Field("abstract", row['abstract'], TextField.TYPE_STORED))
-        doc.add(Field("text", row['text'], TextField.TYPE_STORED))
-        doc.add(Field("originalText", row['originalText'], TextField.TYPE_STORED))
-        writer.addDocument(doc)
-writer.commit()
-writer.close()
-
+    # Create document
+    with open('data.csv', newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            doc = Document()
+            #print(row)
+            doc.add(Field("autor", row['autor'], TextField.TYPE_STORED))
+            doc.add(Field("title", row['title'], TextField.TYPE_STORED))
+            doc.add(Field("subtitle", row['subtitle'], TextField.TYPE_STORED))
+            doc.add(Field("abstract", row['abstract'], TextField.TYPE_STORED))
+            doc.add(Field("text", row['text'], TextField.TYPE_STORED))
+            doc.add(StoredField("originalText", row['originalText']))
+            writer.addDocument(doc)
+    writer.commit()
+    writer.close()
 
 # -------- SEARCHING --------
+print("Searching...")
 directory = SimpleFSDirectory(Paths.get("index"))
 searcher = IndexSearcher(DirectoryReader.open(directory))
 analyzer = StandardAnalyzer()
