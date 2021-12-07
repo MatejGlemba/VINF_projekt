@@ -1,6 +1,7 @@
 # Code from presentation: https://vi2021.ui.sav.sk/lib/exe/fetch.php?media=11_seleng_ir_tools.pdf
 # It starts right at the beggining of the presentation
 
+import regex
 import lucene
 from lucene import *
 from java.nio.file import Paths
@@ -20,7 +21,7 @@ def stemming(query):
 
 # -------- INDEXING --------
 lucene.initVM(vmargs=['-Djava.awt.headless=true'])
-print('lucene', lucene.VERSION)
+#print('lucene', lucene.VERSION)
 
 store = SimpleFSDirectory(Paths.get("index"))
 analyzer = StandardAnalyzer()
@@ -41,38 +42,49 @@ with open('data.csv', newline='') as csvfile:
         doc.add(Field("text", row['text'], TextField.TYPE_STORED))
         doc.add(Field("originalText", row['originalText'], TextField.TYPE_STORED))
         writer.addDocument(doc)
-#text = "This is the text to be indexed."
-
-
-# This may be a costly operation, so you should test the cost
-# in your application and do it only when really necessary.
 writer.commit()
 writer.close()
 
 
 # -------- SEARCHING --------
-# (i guess it's supposed to be separeted file/method. I've merged it just to make it more convinient)
-# lucene.initVM(vmargs=['-Djava.awt.headless=true'])
-# print('lucene', lucene.VERSION)
-
 directory = SimpleFSDirectory(Paths.get("index"))
 searcher = IndexSearcher(DirectoryReader.open(directory))
 analyzer = StandardAnalyzer()
 
-# "text" is the value that is searched in indexed text under the field "fieldname"
-#scoreDocs = searcher.search(query, 50).scoreDocs
-
-#print("---------------------------------------")
-#print("Input: ")
-#query = input().strip()
-inputKeys = sys.argv[1]
+inputKeys = sys.argv[1].strip()
 top = sys.argv[2]
-inputKeys = inputKeys.lower()
-#inputKeys = removeStopWords(inputKeys)
-inputKeys = stemming(inputKeys)
+print(inputKeys)
+if regex.search(",", inputKeys):
+    inputKeys = regex.split(",", inputKeys)
+    tempString = ""
+    for inputKey in inputKeys:
+        tempString += stemming(inputKey.strip()) + " "
+    inputKeys = tempString
+else:
+    inputKeys = regex.finditer("(?P<prefix>[^:]*:)?(?P<key>[^\^ [AND|OR]+]*)(?P<postfix>\^[0-9])?(?P<op>[AND|OR| ]+)?",inputKeys)
+    if inputKeys:
+        print("GROUPS")
+        tempString = ""
+        for inputKey in inputKeys:
+            inputKeyDict = inputKey.groupdict()
+            if inputKeyDict['prefix']:
+                print("PREFIX", inputKeyDict['prefix'])
+                tempString += inputKeyDict['prefix']
+            if inputKeyDict['key']:
+                print("KEY", inputKeyDict['key'])
+                tempString += stemming(inputKeyDict['key'].lower())
+            if inputKeyDict['postfix']:
+                print("POSTFIX", inputKeyDict['postfix'])
+                tempString += inputKeyDict['postfix']
+            if inputKeyDict['op']:
+                print("OP", inputKeyDict['op'])
+                tempString += inputKeyDict['op']  
+        inputKeys = tempString
+    else:
+        print("NIC")    
 print(inputKeys)
 
-inputKeys = "title:rodin^5 OR subtitle:rodin" 
+#inputKeys = "title:rodin^5 OR subtitle:rodin" 
 query = QueryParser("text", analyzer).parse(inputKeys)
 scoreDocs = searcher.search(query, int(top)).scoreDocs
 
