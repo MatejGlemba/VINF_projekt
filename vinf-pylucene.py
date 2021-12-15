@@ -21,7 +21,7 @@ def stemming(query):
 lucene.initVM(vmargs=['-Djava.awt.headless=true'])
 #print('lucene', lucene.VERSION)
 
-if not path.exists('index') and not path.exists('index2'):
+if not path.exists('index'):
     print("Creating index...")
     store = SimpleFSDirectory(Paths.get("index"))
     analyzer = StandardAnalyzer()
@@ -51,41 +51,12 @@ if not path.exists('index') and not path.exists('index2'):
     writer.close()
     
     
-    # Create document
-    store2 = SimpleFSDirectory(Paths.get("index2"))
-    analyzer2 = StandardAnalyzer()
-    config2 = IndexWriterConfig(analyzer2)
-    config2.setOpenMode(IndexWriterConfig.OpenMode.CREATE)
-    writer2 = IndexWriter(store2, config2)
-    
-    with open('dataCsv.csv', newline='') as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            doc = Document()
-            #print(row)
-            doc.add(Field("transakciaID", row['transakciaID'], TextField.TYPE_STORED))
-            doc.add(Field("timestamp", row['timestamp'], TextField.TYPE_STORED))
-            doc.add(Field("operacia", row['operacia'], TextField.TYPE_STORED))
-            doc.add(Field("catId", row['catId'], TextField.TYPE_STORED))
-            doc.add(Field("cena", row['cena'], TextField.TYPE_STORED))
-            doc.add(Field("userHash", row['userHash'], TextField.TYPE_STORED))
-            doc.add(Field("psc", row['psc'], TextField.TYPE_STORED))
-            doc.add(Field("vek", row['vek'], TextField.TYPE_STORED))
-            doc.add(Field("casVypozicania", row['casVypozicania'], TextField.TYPE_STORED))
-            doc.add(Field("dlzkaTransakcie", row['dlzkaTransakcie'], TextField.TYPE_STORED))
-            doc.add(Field("pocetUpomienok", row['pocetUpomienok'], TextField.TYPE_STORED))
-            writer2.addDocument(doc)
-    writer2.commit()
-    writer2.close()
+   
 
 # -------- SEARCHING --------
 print("Searching...")
 directory = SimpleFSDirectory(Paths.get("index"))
 searcher = IndexSearcher(DirectoryReader.open(directory))
-
-directory = SimpleFSDirectory(Paths.get("index2"))
-searcher2 = IndexSearcher(DirectoryReader.open(directory))
-
 analyzer = StandardAnalyzer()
 
 
@@ -131,14 +102,13 @@ option = ''
 if len(scoreDocs) > 0:
     print("--------------------------------")
     print("1 - operacie podla autora")
-    print("2 - konspekty podla autora")
-    print("3 - okres podla autora")
-    print("4 - vekova skupina podla autora")
-    print("0 - koniec")
+    print("2 - okres podla autora")
+    print("3 - vekova skupina podla autora")
+    print("0 - bez statistik")
     print("--------------------------------")
     option = input()
 
-    if option == 1:
+    if option == '1':
         if not path.exists('indexOperacie'):
             print("Creating indexOperacie...")
             storeOP = SimpleFSDirectory(Paths.get("indexOperacie"))
@@ -168,47 +138,14 @@ if len(scoreDocs) > 0:
             doc = searcher.doc(scoreDoc.doc)
             print('Score: ', scoreDoc, 'Data: ', doc.get('originalText'))
             print("----------------STATS------------------")
-            queryOP = QueryParser("originalAutor", analyzerOP).parse(doc.get('originalAutor'))
+            aut = str(doc.get('originalAutor'))
+            text = "originalAutor:" + aut
+            queryOP = QueryParser("originalAutor", analyzerOP).parse(text)
             scoreDocsOP = searcherOP.search(queryOP, 15).scoreDocs
             print("%s total matching OP documents." % len(scoreDocsOP))
             for scoreDocOP in scoreDocsOP: 
-                print(scoreDocOP)
-    elif option == 2:
-        if not path.exists('indexKonspekt'):
-            print("Creating indexKonspekt...")
-            storeKON = SimpleFSDirectory(Paths.get("indexKonspekt"))
-            analyzerKON = StandardAnalyzer()
-            configKON = IndexWriterConfig(analyzerKON)
-            configKON.setOpenMode(IndexWriterConfig.OpenMode.CREATE)
-            writerKON = IndexWriter(storeKON, configKON)
-
-            # Create document
-            with open('konspekt.csv', newline='') as csvfile:
-                reader = csv.DictReader(csvfile)
-                for row in reader:
-                    doc = Document()
-                    #print(row)
-                    doc.add(Field("originalAutor", row['originalAutor'], TextField.TYPE_STORED))
-                    doc.add(Field("konspekt", row['konspekt'], TextField.TYPE_STORED))
-                    doc.add(Field("count", row['count'], TextField.TYPE_STORED))
-                    writerKON.addDocument(doc)
-            writerKON.commit()
-            writerKON.close()
-        directoryKON = SimpleFSDirectory(Paths.get("indexKonspekt"))
-        searcherKON = IndexSearcher(DirectoryReader.open(directoryKON))
-        analyzerKON = StandardAnalyzer()
-        
-        for scoreDoc in scoreDocs:
-            print("---------------------------------------")
-            doc = searcher.doc(scoreDoc.doc)
-            print('Score: ', scoreDoc, 'Data: ', doc.get('originalText'))
-            print("----------------STATS------------------")
-            queryKON = QueryParser("originalAutor", analyzerKON).parse(doc.get('originalAutor'))
-            scoreDocsKON = searcherKON.search(queryKON, 15).scoreDocs
-            print("%s total matching OP documents." % len(scoreDocsKON))
-            for scoreDocKON in scoreDocsKON: 
-                print(scoreDocKON)
-    elif option == 3:
+                print(scoreDocOP)  
+    elif option == '2':
         if not path.exists('indexOkres'):
             print("Creating indexOkres...")
             storeOKR = SimpleFSDirectory(Paths.get("indexOkres"))
@@ -238,12 +175,14 @@ if len(scoreDocs) > 0:
             doc = searcher.doc(scoreDoc.doc)
             print('Score: ', scoreDoc, 'Data: ', doc.get('originalText'))
             print("----------------STATS------------------")
-            queryOKR = QueryParser("originalAutor", analyzerOKR).parse(doc.get('originalAutor'))
+            aut = str(doc.get('originalAutor'))
+            text = "originalAutor:" + aut
+            queryOKR = QueryParser("originalAutor", analyzerOKR).parse(text)
             scoreDocsOKR = searcherOKR.search(queryOKR, 15).scoreDocs
             print("%s total matching OP documents." % len(scoreDocsOKR))
             for scoreDocOKR in scoreDocsOKR: 
                 print(scoreDocOKR)
-    elif option == 4:
+    elif option == '3':
         if not path.exists('indexVek'):
             print("Creating indexVek...")
             storeVEK = SimpleFSDirectory(Paths.get("indexVek"))
@@ -273,7 +212,9 @@ if len(scoreDocs) > 0:
             doc = searcher.doc(scoreDoc.doc)
             print('Score: ', scoreDoc, 'Data: ', doc.get('originalText'))
             print("----------------STATS------------------")
-            queryVEK = QueryParser("originalAutor", analyzerVEK).parse(doc.get('originalAutor'))
+            aut = str(doc.get('originalAutor'))
+            text = "originalAutor:" + aut
+            queryVEK = QueryParser("originalAutor", analyzerVEK).parse(text)
             scoreDocsVEK = searcherVEK.search(queryVEK, 15).scoreDocs
             print("%s total matching OP documents." % len(scoreDocsVEK))
             for scoreDocVEK in scoreDocsVEK: 

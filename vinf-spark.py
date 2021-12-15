@@ -355,37 +355,49 @@ def runProgram():
     tempDf2 = df2
     tempCsv2 = dfcsv2
     autorOperaciaDF = tempDf2.join(tempCsv2,tempDf2.id ==  tempCsv2.catId,"inner")\
+        .filter(col("originalAutor").isNotNull())\
+        .filter(col("operacia").isNotNull())\
+        .filter(col("operacia") != '')\
         .groupBy("originalAutor", "operacia") \
         .count().alias("count")\
-        .orderBy(col("count").desc(),col("originalAutor").desc())\
-        .show(truncate=False)
+        .orderBy(col("count").desc(),col("originalAutor").desc(),col("operacia").desc())
+        #.show(truncate=False)
     
-    tempDf2 = df2
-    tempCsv2 = dfcsv2
+    #tempDf2 = df2
+    #tempCsv2 = dfcsv2
         
-    autorKonspektDF = tempDf2.join(tempCsv2,tempDf2.id ==  tempCsv2.catId,"inner")\
-        .groupBy("originalAutor", "konspekt") \
-        .count().alias("count")\
-        .orderBy(col("count").desc(),col("originalAutor").desc())\
-        .show(truncate=False)
+    #autorKonspektDF = tempDf2.join(tempCsv2,tempDf2.id ==  tempCsv2.catId,"inner")\
+    #    .filter(col("originalAutor").isNotNull())\
+    #    .filter(col("konspekt").isNotNull())\
+    #    .filter(col("konspekt") != '')\
+    #    .groupBy("originalAutor", "konspekt")\
+    #    .count().alias("count")\
+    #    .orderBy(col("count").desc(),col("originalAutor").desc(),col("konspekt").desc())\
+    #    .show(truncate=False)
         
     tempDf2 = df2
     tempCsv2 = dfcsv2
         
     autorPscDF = tempDf2.join(tempCsv2,tempDf2.id ==  tempCsv2.catId,"inner")\
+        .filter(col("originalAutor").isNotNull())\
+        .filter(col("psc").isNotNull())\
+        .filter(col("psc") != '')\
         .groupBy("originalAutor", "psc") \
         .count().alias("count")\
-        .orderBy(col("count").desc(),col("originalAutor").desc())\
-        .show(truncate=False)
+        .orderBy(col("count").desc(),col("originalAutor").desc(),col("psc").desc())
+        #.show(truncate=False)
         
     tempDf2 = df2
     tempCsv2 = dfcsv2
     
     autorVekSkupinaDF = tempDf2.join(tempCsv2,tempDf2.id ==  tempCsv2.catId,"inner")\
+        .filter(col("originalAutor").isNotNull())\
+        .filter(col("vekSkupina").isNotNull())\
+        .filter(col("vekSkupina") != 0)\
         .groupBy("originalAutor", "vekSkupina") \
         .count().alias("count")\
-        .orderBy(col("count").desc(),col("originalAutor").desc())\
-        .show(truncate=False)
+        .orderBy(col("count").desc(),col("originalAutor").desc(),col("vekSkupina").desc())
+        #.show(truncate=False)
         
     tempDf2 = df2
     tempCsv2 = dfcsv2
@@ -397,7 +409,7 @@ def runProgram():
     #    .show(truncate=False)
     
     
-    # ------------ zapis dat do csv -------------------------------#
+    #------------ zapis dat do csv -------------------------------#
     outputFileXml = sys.argv[2]
     if not outputFileXml:
         outputFileXml = "dataXml"
@@ -416,10 +428,10 @@ def runProgram():
         .format('com.databricks.spark.csv')\
         .save(outputFileCsv)
     
-    autorKonspektDF.write.option("delimiter", ",")\
-        .option("header", "true")\
-        .format('com.databricks.spark.csv')\
-        .save("konspekt")
+    #autorKonspektDF.write.option("delimiter", ",")\
+    #    .option("header", "true")\
+    #    .format('com.databricks.spark.csv')\
+    #    .save("konspekt")
     autorOperaciaDF.write.option("delimiter", ",")\
         .option("header", "true")\
         .format('com.databricks.spark.csv')\
